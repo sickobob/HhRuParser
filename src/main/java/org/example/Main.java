@@ -1,4 +1,8 @@
 package org.example;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.services.sheets.v4.Sheets;
+import com.google.api.services.sheets.v4.model.ValueRange;
 import org.apache.commons.io.FileUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -16,7 +20,7 @@ public class Main {
     public static void main(String[] args) throws IOException {
         String workExp = new String();
         switch (args[2]) {
-            //передеалть на 12345
+            //?????????? ?? 12345
             case "1":
                 workExp = "";
                 break;
@@ -40,13 +44,13 @@ public class Main {
         final String userAgent = "Chrome/4.0.249.0";
         final String refferer = "http://www.google.com";
      String url  = String.format("https://hh.ru/search/vacancy?area=%s&experience=%s&search_field=name&search_field=company_name&search_field=description&text=%s&clusters=true&ored_clusters=true&enable_snippets=true",args[1],workExp,args[0]);
-        //переделать на константы
+        //?????????? ?? ?????????
         Document doc = Jsoup.connect(url)
                 .userAgent(userAgent)
                 .referrer(refferer)
                 .get();
         //list vacancy
-        int n = 0; //счетчик количества полей, в которых есть данные(числовые---->которые можно спарсить)
+        int n = 0;
         Elements listNews = doc.select("div.novafilters >div:nth-child(4)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label");
         for (Element element : listNews) {
             if(!element.select("input").attr("value").isEmpty() && !element.select("span>span:nth-child(2)").text().isEmpty())
@@ -69,9 +73,9 @@ public class Main {
     }
    public static double GetValue(ArrayList<VacancyData> vacancyDataArrayList) {
         int j =0;
-        double[] sredZ = new double[vacancyDataArrayList.size()-1];//массив со сред зп
-        int[] counts = new int[vacancyDataArrayList.size()-1];//массив столбца E
-        double[] fMas = new double[vacancyDataArrayList.size()-1];//массив столбца F
+        double[] sredZ = new double[vacancyDataArrayList.size()-1];//?????? ?? ???? ??
+        int[] counts = new int[vacancyDataArrayList.size()-1];//?????? ??????? E
+        double[] fMas = new double[vacancyDataArrayList.size()-1];//?????? ??????? F
         double[] sums  =  new double[vacancyDataArrayList.size()];
         int[] nums = new int[vacancyDataArrayList.size()-1];
         for(VacancyData db : vacancyDataArrayList)
