@@ -37,7 +37,7 @@ public class Main {
                 workExp = "moreThan6";
                 break;
             default:
-                System.out.println("work exp is none");
+                System.out.println("0");
 
         }
         ArrayList<VacancyData> vacancyDataArrayList = new ArrayList<>();
@@ -51,16 +51,15 @@ public class Main {
                 .get();
         //list vacancy
         int n = 0;
-        Elements listNews = doc.select("div.novafilters >div:nth-child(4)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label");
+        Elements listNews = doc.select("div.novafilters >div:nth-child(6)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label");
         for (Element element : listNews) {
-            if(!element.select("input").attr("value").isEmpty() && !element.select("span>span:nth-child(2)").text().isEmpty())
-            {
+            if (!element.select("input").attr("value").isEmpty() && !element.select("span>span:nth-child(2)").text().isEmpty()) {
                 double zp = Double.parseDouble(element.select("input").attr("value"));
-                int amount = Integer.parseInt(element.select("span>span:nth-child(2)").text().replace("?",""));
+                int amount = Integer.parseInt(element.select("span>span:nth-child(2)").text().replace("?", ""));
                 VacancyData vacancyData = new VacancyData(zp, amount);
                 vacancyDataArrayList.add(vacancyData);
             }
-            }
+        }
         VacancyData vacancyData = new VacancyData(vacancyDataArrayList.get(vacancyDataArrayList.size()-1).getZp()*1.2,0);
         vacancyDataArrayList.add(vacancyData);
 

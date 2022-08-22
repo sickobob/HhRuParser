@@ -12,17 +12,21 @@ import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.sheets.v4.Sheets;
 import com.google.api.services.sheets.v4.SheetsScopes;
+import com.google.api.services.sheets.v4.model.UpdateValuesResponse;
 import com.google.api.services.sheets.v4.model.ValueRange;
+import org.checkerframework.checker.units.qual.A;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
+import java.net.URLEncoder;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
 import java.util.stream.DoubleStream;
 import java.util.stream.IntStream;
 
@@ -35,8 +39,8 @@ public class SheetsQuickstart {
      * Global instance of the scopes required by this quickstart.
      * If modifying these scopes, delete your previously saved tokens/ folder.
      */
-    private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS_READONLY);
-    private static final String CREDENTIALS_FILE_PATH = "src/main/java/resources/credential.json";
+    private static final List<String> SCOPES = Collections.singletonList(SheetsScopes.SPREADSHEETS);
+    private static final String CREDENTIALS_FILE_PATH = "src/main/resources/credential.json";
 
     /**
      * Creates an authorized Credential object.
@@ -62,20 +66,27 @@ public class SheetsQuickstart {
         LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
         return new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
     }
-
     /**
      * Prints the names and majors of students in a sample spreadsheet:
      * https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
      * https://docs.google.com/spreadsheets/d/1NWuVUsyykqTCsU9fW8h9Btiu4Mh4njfhTpkyIducbgk/edit#gid=0
      */
-    public static void main(String... args) throws IOException, GeneralSecurityException {
-        ArrayList<Data> datas = new ArrayList<Data>();
-
+    public static void main(String... args) throws IOException, GeneralSecurityException, java.text.ParseException {
+        ArrayList<InfoTab> infoTabs = new ArrayList<InfoTab>();
         // Build a new authorized API client service.
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
         final String spreadsheetId = "1NWuVUsyykqTCsU9fW8h9Btiu4Mh4njfhTpkyIducbgk";
-        final String readingRange = "g2:i4";
-        final String writtingRange = "g2:i4";
+        final String readingRange = "b1:j3";
+        final String writtingRange = "a4:d1000";
+        final String pattern = "dd.MM.yyyy";
+        final SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
+        final String userAgent = "Chrome/4.0.249.0";
+        final String refferer = "http://www.google.com";
+        Date now = new Date();
+        ArrayList<String> keyWords = new ArrayList<>();
+        ArrayList<String> amounts = new ArrayList<>();
+        ArrayList<String> regionIds = new ArrayList<>();
+        ArrayList<Object> valueList = new ArrayList<>();
         Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                 .setApplicationName(APPLICATION_NAME)
                 .build();
@@ -83,110 +94,103 @@ public class SheetsQuickstart {
                 .get(spreadsheetId, readingRange)
                 .execute();
         List<List<Object>> values = response.getValues();
-        int arrSize = values.size();
-        for (int i = 0; i < arrSize; i++) {
-            Data data = new Data();
-            datas.add(data);
-        }
-        ArrayList<String> keyWords = new ArrayList<>();
-        ArrayList<String> regionIds = new ArrayList<>();
-        ArrayList<String> amounts = new ArrayList<>();
-        int n = 0;
+        ValueRange responseW = service.spreadsheets().values()
+                .get(spreadsheetId, writtingRange)
+                .execute();
+        List<List<Object>> valuesW = responseW.getValues();
+        // System.out.println(simpleDateFormat.parse((String) valuesW.get(valuesW.size()-1).get(0)));
+        int countR=0;
         if (values == null || values.isEmpty()) {
             System.out.println("No data found.");
         } else {
             for (List row : values) {
-                if (!row.isEmpty()) {
-                    for (int i = 0; i < arrSize; i++) {
-                        switch (i) {
-                            case (0):
-                                keyWords.add(row.get(i).toString());
-                            case (1):
-                                amounts.add(row.get(i).toString());
-                            case (2):
-                                regionIds.add(row.get(i).toString());
-                        }
-
-
-                    }
-
-
-                }
-
-
-            }
-            for (int i = 0; i < arrSize; i++) {
-                datas.get(i).setKeyWords(keyWords.get(i));
-                datas.get(i).setExpereinceAmount(amounts.get(i));
-                datas.get(i).setRegionId(regionIds.get(i));
-            }
-            for (Data data : datas) {
-                String workExp = new String();
-                switch (data.getExpereinceAmount()) {
-                    //?????????? ?? 12345
-                    case "1":
-                        workExp = "";
-                        break;
-                    case "2":
-                        workExp = "between1And3";
-                        break;
-                    case "3":
-                        workExp = "noExperience";
-                        break;
-                    case "4":
-                        workExp = "between3And6";
-                        break;
-                    case "5":
-                        workExp = "moreThan6";
-                        break;
-                    default:
-                        System.out.println("work exp is none");
-
-                }
-                ArrayList<VacancyData> vacancyDataArrayList = new ArrayList<>();
-                final String userAgent = "Chrome/4.0.249.0";
-                final String refferer = "http://www.google.com";
-                String url = String.format("https://hh.ru/search/vacancy?area=%s&experience=%s&search_field=name&search_field=company_name&search_field=description&text=%s&clusters=true&ored_clusters=true&enable_snippets=true", data.getRegionId(), workExp, data.getKeyWords());
-                //?????????? ?? ?????????
-                Document doc = Jsoup.connect(url)
-                        .userAgent(userAgent)
-                        .referrer(refferer)
-                        .get();
-                //list vacancy
-                Elements listNews = doc.select("div.novafilters >div:nth-child(4)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label");
-                for (Element element : listNews) {
-                    if (!element.select("input").attr("value").isEmpty() && !element.select("span>span:nth-child(2)").text().isEmpty()) {
-                        double zp = Double.parseDouble(element.select("input").attr("value"));
-                        int amount = Integer.parseInt(element.select("span>span:nth-child(2)").text().replace("?", ""));
-                        VacancyData vacancyData = new VacancyData(zp, amount);
-                        vacancyDataArrayList.add(vacancyData);
-                    }
-                }
-                VacancyData vacancyData = new VacancyData(vacancyDataArrayList.get(vacancyDataArrayList.size() - 1).getZp() * 1.2, 0);
-                vacancyDataArrayList.add(vacancyData);
+              switch (countR){
+                  case (0):
+                    keyWords = (ArrayList<String>) row;
+                  case (1):
+                      amounts =  (ArrayList<String>) row;
+                  case (2):
+                      regionIds = (ArrayList<String>) row;
+              }
+              countR++;
             }
         }
+        for (int i = 0; i<keyWords.size();i++){
+           InfoTab infoTab = new InfoTab();
+           infoTab.setKeyWords(keyWords.get(i));
+           infoTab.setRegionId(regionIds.get(i));
+           infoTab.setExpereinceAmount(amounts.get(i));
+        infoTabs.add(infoTab);
+        }
+
+        for (InfoTab infoTab : infoTabs) {
+            //переимменовать данные
+            ArrayList<VacancyData> vacancyDataArrayList = new ArrayList<>();
+              String url1 = "https://hh.ru/search/vacancy?area=1&search_field=name&search_field=company_name&search_field=description&salary=100000&only_with_salary=true&text=java&items_on_page=50&no_magic=true&L_save_area=true";
+            Document doc = Jsoup.connect(url1)
+                    .userAgent(userAgent)
+                    .referrer(refferer)
+                    .get();
+            //list vacancy
+            Elements listNews = doc.select("div.novafilters >div:nth-child(6)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label");
+            for (Element element : listNews) {
+                if (!element.select("input").attr("value").isEmpty() && !element.select("span>span:nth-child(2)").text().isEmpty()) {
+                    double zp = Double.parseDouble(element.select("input").attr("value"));
+                    int amount = Integer.parseInt(element.select("span>span:nth-child(2)").text().replace("?", ""));
+                    VacancyData vacancyData = new VacancyData(zp, amount);
+                    vacancyDataArrayList.add(vacancyData);
+                }
+            }
+            VacancyData vacancyData = new VacancyData(vacancyDataArrayList.get(vacancyDataArrayList.size() - 1).getZp() * 1.2, 0);
+            vacancyDataArrayList.add(vacancyData);
+            valueList.add(GetValue(vacancyDataArrayList));
+        }
+        valueList.add(0,simpleDateFormat.format(now));
+      //  System.out.println(valueList);
+        if (simpleDateFormat.parse((String) valuesW.get(valuesW.size()-1).get(0)).getDate() == now.getDate()){
+            List<List<Object>> objs = Arrays.asList(valueList);
+            ValueRange appendBody = new ValueRange()
+                    .setValues(objs);
+            UpdateValuesResponse result = service.spreadsheets().values()
+                    .update(spreadsheetId, String.format("a%d",valuesW.size()+3), appendBody)
+                    .setValueInputOption("RAW")
+                    .execute();
+        }
+        else {
+            List<List<Object>> objs = Arrays.asList(valueList);
+            ValueRange appendBody = new ValueRange()
+                    .setValues(objs);
+            UpdateValuesResponse result = service.spreadsheets().values()
+                    .update(spreadsheetId, String.format("a%d",valuesW.size()+4), appendBody)
+                    .setValueInputOption("RAW")
+                    .execute();
+        }
+
+
+        //переименовать дату, найти строчку, поменять параметры добавить методы
+
     }
+
     public static double GetValue(ArrayList<VacancyData> vacancyDataArrayList) {
-        int j =0;
-        double[] sredZ = new double[vacancyDataArrayList.size()-1];//?????? ?? ???? ??
-        int[] counts = new int[vacancyDataArrayList.size()-1];//?????? ??????? E
-        double[] fMas = new double[vacancyDataArrayList.size()-1];//?????? ??????? F
-        double[] sums  =  new double[vacancyDataArrayList.size()];
+        int j = 0;
+        double[] sredZ = new double[vacancyDataArrayList.size() - 1];//?????? ?? ???? ??
+        int[] counts = new int[vacancyDataArrayList.size() - 1];//?????? ??????? E
+        double[] fMas = new double[vacancyDataArrayList.size() - 1];//?????? ??????? F
+        double[] sums = new double[vacancyDataArrayList.size()];
         int[] nums = new int[vacancyDataArrayList.size()-1];
-        for(VacancyData db : vacancyDataArrayList)
-        {
+        for (VacancyData db : vacancyDataArrayList) {
             sums[j] = db.getZp();
-            j+=1;
+            j += 1;
         }
-        j=0;
+        j = 0;
 
-        for(VacancyData db : vacancyDataArrayList)
-        {
-            nums[j] = db.getVacancyAmount();
-            j+=1;
+        for (VacancyData db : vacancyDataArrayList) {
+            while (j!=nums.length-1){
+                nums[j] = db.getVacancyAmount();
+                j += 1;
+            }
+
         }
-
         for (int i = 0; i < sums.length - 1; i++) {
             sredZ[i] = (sums[i] + sums[i + 1]) / 2;
         }
@@ -198,5 +202,32 @@ public class SheetsQuickstart {
         }
         return Math.round(DoubleStream.of(fMas).sum() / IntStream.of(counts).sum());
     }
+
+    public static String GetUrl(InfoTab infoTab) {
+        String workExp = new String();
+        switch (infoTab.getExpereinceAmount()) {
+            //?????????? ?? 12345
+            case "1":
+                workExp = "";
+                break;
+            case "2":
+                workExp = "between1And3";
+                break;
+            case "3":
+                workExp = "noExperience";
+                break;
+            case "4":
+                workExp = "between3And6";
+                break;
+            case "5":
+                workExp = "moreThan6";
+                break;
+            default:
+                System.out.println("0");
+
+        }
+        return String.format("https://hh.ru/search/vacancy?text=%s&area=%s&experience=%s&search_field=name&search_field=company_name&search_field=description&clusters=true&ored_clusters=true&enable_snippets=true", infoTab.getKeyWords(), infoTab.getRegionId(), workExp);
+    }
+
 }
 
