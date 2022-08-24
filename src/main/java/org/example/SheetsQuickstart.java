@@ -117,7 +117,7 @@ public class SheetsQuickstart {
         }
         for (int i = 0; i<keyWords.size();i++){
            InfoTab infoTab = new InfoTab();
-           infoTab.setKeyWords(keyWords.get(i));
+           infoTab.setKeyWords(URLEncoder.encode(keyWords.get(i), "utf-8"));
            infoTab.setRegionId(regionIds.get(i));
            infoTab.setExpereinceAmount(amounts.get(i));
         infoTabs.add(infoTab);
@@ -125,25 +125,7 @@ public class SheetsQuickstart {
 
         for (InfoTab infoTab : infoTabs) {
             //переимменовать данные
-            ArrayList<VacancyData> vacancyDataArrayList = new ArrayList<>();
-              String url1 = "https://hh.ru/search/vacancy?area=1&search_field=name&search_field=company_name&search_field=description&salary=100000&only_with_salary=true&text=java&items_on_page=50&no_magic=true&L_save_area=true";
-            Document doc = Jsoup.connect(url1)
-                    .userAgent(userAgent)
-                    .referrer(refferer)
-                    .get();
-            //list vacancy
-            Elements listNews = doc.select("div.novafilters >div:nth-child(6)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label");
-            for (Element element : listNews) {
-                if (!element.select("input").attr("value").isEmpty() && !element.select("span>span:nth-child(2)").text().isEmpty()) {
-                    double zp = Double.parseDouble(element.select("input").attr("value"));
-                    int amount = Integer.parseInt(element.select("span>span:nth-child(2)").text().replace("?", ""));
-                    VacancyData vacancyData = new VacancyData(zp, amount);
-                    vacancyDataArrayList.add(vacancyData);
-                }
-            }
-            VacancyData vacancyData = new VacancyData(vacancyDataArrayList.get(vacancyDataArrayList.size() - 1).getZp() * 1.2, 0);
-            vacancyDataArrayList.add(vacancyData);
-            valueList.add(GetValue(vacancyDataArrayList));
+
         }
         valueList.add(0,simpleDateFormat.format(now));
       //  System.out.println(valueList);
