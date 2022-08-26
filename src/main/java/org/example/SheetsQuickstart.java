@@ -134,7 +134,7 @@ public class SheetsQuickstart {
 
 
         valueList.add(0, LocalDate.now().format(formatter));
-        LocalDate lastDate = LocalDate.parse((String) valuesW.get(valuesW.size() - 1).get(0));
+        LocalDate lastDate = LocalDate.parse((String) valuesW.get(valuesW.size() - 1).get(0),formatter);
         if (lastDate.equals(now)) {
             UpdateValuesResponse result = service.spreadsheets().values()
                     .update(spreadsheetId, String.format("a%d", valuesW.size() + 3), assemblyRange(valueList))
