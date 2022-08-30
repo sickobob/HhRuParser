@@ -2,12 +2,24 @@ package org.example;
 
 public class InfoTab {
     private String keyWords;
-    private String expereinceAmount;
-    private String regionId;
-    public void setKeyWords(String keyWords){this.keyWords=keyWords;}
-    public void setExpereinceAmount(String experienceAmount){this.expereinceAmount=experienceAmount;}
-    public void setRegionId(String regionId ){this.regionId=regionId;}
-    public String getKeyWords(){return this.keyWords;}
-    public String getExpereinceAmount(){return this.expereinceAmount;}
-    public String getRegionId(){return this.regionId;}
+    private int expereinceAmount;
+    private int regionId;
+    public String getKeyWords(){
+        return this.keyWords;
+    }
+    public int getExpereinceAmount(){
+        return this.expereinceAmount;
+    }
+    public int getRegionId(){
+        return this.regionId;
+    }
+    public InfoTab(String keyWords, int expereinceAmount,int regionId) {
+        if(expereinceAmount > 5 || expereinceAmount < 1) {
+            throw new IllegalArgumentException("expereinceAmount more than 5 or less then 1");
+        }
+        this.keyWords = keyWords;
+        this.expereinceAmount =expereinceAmount;
+        this.regionId=regionId;
+
+    }
 }

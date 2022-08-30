@@ -22,6 +22,7 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.*;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.security.GeneralSecurityException;
 import java.text.SimpleDateFormat;
@@ -50,6 +51,7 @@ public class SheetsQuickstart {
     final static String cssForParsing = "div.novafilters >div:nth-child(6)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label";
     final static String spaceChar = "?";
     final static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+    final static double coef = 1.2;
 
     /**
      * Creates an authorized Credential object.
@@ -89,11 +91,6 @@ public class SheetsQuickstart {
         final String writtingRange = "a4:d1000";
         final String pattern = "dd.MM.yyyy";
         final SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
-        Date now = new Date();
-
-        ArrayList<String> keyWords = new ArrayList<>();
-        ArrayList<String> amounts = new ArrayList<>();
-        ArrayList<String> regionIds = new ArrayList<>();
         ArrayList<Object> valueList = new ArrayList<>();
         Sheets service = new Sheets.Builder(HTTP_TRANSPORT, JSON_FACTORY, getCredentials(HTTP_TRANSPORT))
                 .setApplicationName(APPLICATION_NAME)
@@ -106,60 +103,44 @@ public class SheetsQuickstart {
                 .get(spreadsheetId, writtingRange)
                 .execute();
         List<List<Object>> valuesW = responseW.getValues();
-        int countR = 0;
-        for (List row : values) {
-            switch (countR) {
-                case (0):
-                    keyWords = (ArrayList<String>) row;
-                case (1):
-                    amounts = (ArrayList<String>) row;
-                case (2):
-                    regionIds = (ArrayList<String>) row;
+        int num = 0;
+        for (Object d : values.get(0)) {
+            if (!"".equals(d)) {
+                num++;
             }
-            countR++;
         }
-        for (int i = 0; i < keyWords.size(); i++) {
-            InfoTab infoTab = new InfoTab();
-            infoTab.setKeyWords(URLEncoder.encode(keyWords.get(i), "utf-8"));
-            infoTab.setRegionId(regionIds.get(i));
-            infoTab.setExpereinceAmount(amounts.get(i));
-            infoTabs.add(infoTab);
+        for (int i = 0; i < num; i++) {
+            InfoTab tab = new InfoTab(values.get(0).get(i).toString(), Integer.parseInt(values.get(1).get(i).toString()), Integer.parseInt(values.get(2).get(i).toString()));
+            infoTabs.add(tab);
         }
         for (InfoTab infoTab : infoTabs) {
-            if (fetchVacancyData(buildUrl(infoTab)).size() == 1)
+            ArrayList<VacancyData> dates = new ArrayList<>();
+            String url = buildUrl(infoTab);
+            dates = fetchVacancyData(url);
+            if (dates.size() == 0) {
                 valueList.add(0);
-            else valueList.add(calculateValue(fetchVacancyData(buildUrl(infoTab))));
-
+            } else {
+                valueList.add(Math.round(calculateZp(dates)));
+            }
         }
-
-
         valueList.add(0, LocalDate.now().format(formatter));
-        LocalDate lastDate = LocalDate.parse((String) valuesW.get(valuesW.size() - 1).get(0),formatter);
-        if (lastDate.equals(now)) {
-            UpdateValuesResponse result = service.spreadsheets().values()
-                    .update(spreadsheetId, String.format("a%d", valuesW.size() + 3), assemblyRange(valueList))
-                    .setValueInputOption("RAW")
-                    .execute();
+        LocalDate lastDate = LocalDate.parse((String) valuesW.get(calculateNum(valuesW) - 1).get(0), formatter);
+        if (lastDate.isEqual(LocalDate.now())) {
+            updateValuesResponse(service, valuesW, valueList);
         } else {
-
-            UpdateValuesResponse result = service.spreadsheets().values()
-                    .update(spreadsheetId, String.format("a%d", valuesW.size() + 4), assemblyRange(valueList))
-                    .setValueInputOption("RAW")
-                    .execute();
+            writeValuesResponse(service, valuesW, valueList);
         }
         //переименовать дату, найти строчку, поменять параметры добавить методы
 
     }
 
-    public static double calculateValue(ArrayList<VacancyData> vacancyDataArrayList) {
+    public static double calculateZp(ArrayList<VacancyData> vacancyDataArrayList) {
 
         double[] sredZ = new double[vacancyDataArrayList.size() - 1];//column D never used????
         int[] columnE = new int[vacancyDataArrayList.size() - 1];//column  E
         double[] columnF = new double[vacancyDataArrayList.size() - 1];//column F
         for (int i = 0; i < vacancyDataArrayList.size() - 2; i++) {
             sredZ[i] = (vacancyDataArrayList.get(i).getZp() + vacancyDataArrayList.get(i + 1).getZp()) / 2;
-        }
-        for (int i = 0; i < vacancyDataArrayList.size() - 2; i++) {
             columnE[i] = vacancyDataArrayList.get(i).getVacancyAmount() - vacancyDataArrayList.get(i + 1).getVacancyAmount();
         }
         for (int i = 0; i < vacancyDataArrayList.size() - 2; i++) {
@@ -168,17 +149,13 @@ public class SheetsQuickstart {
         return DoubleStream.of(columnF).sum() / IntStream.of(columnE).sum();
     }
 
-    public static String buildUrl(InfoTab infoTab) {
-        if (Integer.parseInt(infoTab.getExpereinceAmount()) > 5) return basedUrl;
-        return String.format(basedUrl, infoTab.getKeyWords(), infoTab.getRegionId(), workExp[Integer.parseInt(infoTab.getExpereinceAmount()) - 1]);
+    public static String buildUrl(InfoTab infoTab) throws java.io.UnsupportedEncodingException {
+        return String.format(basedUrl, URLEncoder.encode(infoTab.getKeyWords(), "utf-8"), infoTab.getRegionId(), workExp[infoTab.getExpereinceAmount() - 1]);
     }
 
     public static ArrayList<VacancyData> fetchVacancyData(String url) throws java.io.IOException {
         ArrayList<VacancyData> vacancyDataArrayList = new ArrayList<>();
-        Document doc = Jsoup.connect(url)
-                .userAgent(userAgent)
-                .referrer(refferer)
-                .get();
+        Document doc = Jsoup.parse(new URL(url).openStream(), "ISO-8859-9", url);
         Elements listNews = doc.select(cssForParsing);
         for (Element element : listNews) {
             if (!element.select("input").attr("value").isEmpty() && !element.select("span>span:nth-child(2)").text().isEmpty()) {
@@ -189,11 +166,10 @@ public class SheetsQuickstart {
             }
         }
         if (vacancyDataArrayList.size() != 0) {
-            VacancyData vacancyData = new VacancyData(vacancyDataArrayList.get(vacancyDataArrayList.size() - 1).getZp() * 1.2, 0);
+            VacancyData vacancyData = new VacancyData(vacancyDataArrayList.get(vacancyDataArrayList.size() - 1).getZp() * coef, 0);
             vacancyDataArrayList.add(vacancyData);
             return vacancyDataArrayList;
         } else {
-            vacancyDataArrayList.add(new VacancyData(0, 0));
             return vacancyDataArrayList;
         }
 
@@ -205,12 +181,31 @@ public class SheetsQuickstart {
                 .setValues(objs);
         return appendBody;
     }
-    static boolean compareDates(LocalDate parseDate, LocalDate now){
-        if(parseDate.equals(now)) return true;
-        else return false;
+
+    static int calculateNum(List<List<Object>> valueList) {
+        int num = 0;
+        for (List d : valueList) {
+            if (!"".equals(d)) {
+                num++;
+            }
+        }
+        return num;
     }
 
+    static UpdateValuesResponse updateValuesResponse(Sheets service, List<List<Object>> valuesW, ArrayList<Object> valueList) throws java.io.IOException {
+        UpdateValuesResponse result = service.spreadsheets().values()
+                .update(spreadsheetId, String.format("a%d", calculateNum(valuesW) + 3), assemblyRange(valueList))
+                .setValueInputOption("USER_ENTERED")
+                .execute();
+        return result;
+    }
 
-
+    static UpdateValuesResponse writeValuesResponse(Sheets service, List<List<Object>> valuesW, ArrayList<Object> valueList) throws java.io.IOException {
+        UpdateValuesResponse result = service.spreadsheets().values()
+                .update(spreadsheetId, String.format("a%d", calculateNum(valuesW) + 4), assemblyRange(valueList))
+                .setValueInputOption("USER_ENTERED")
+                .execute();
+        return result;
+    }
 }
 
