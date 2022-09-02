@@ -49,7 +49,7 @@ public class SheetsQuickstart {
     final static String userAgent = "Chrome/4.0.249.0";
     final static String refferer = "http://www.google.com";
     final static String cssForParsing = "div.novafilters >div:nth-child(6)>div.novafilters-group-wrapper>div.novafilters-group__items>li>label";
-    final static String spaceChar = "?";
+    final static String spaceChar = "";
     final static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
     final static double coef = 1.2;
 
@@ -97,62 +97,81 @@ public class SheetsQuickstart {
                 .build();
         ValueRange response = service.spreadsheets().values()
                 .get(spreadsheetId, readingRange)
-                .execute();
+                .execute();// executing reading range
         List<List<Object>> values = response.getValues();
         ValueRange responseW = service.spreadsheets().values()
                 .get(spreadsheetId, writtingRange)
-                .execute();
+                .execute();// executing writing range
         List<List<Object>> valuesW = responseW.getValues();
         int num = 0;
         for (Object d : values.get(0)) {
             if (!"".equals(d)) {
                 num++;
             }
-        }
+        }//getting nums count(how many InfoTab need to create)
+
         for (int i = 0; i < num; i++) {
             InfoTab tab = new InfoTab(values.get(0).get(i).toString(), Integer.parseInt(values.get(1).get(i).toString()), Integer.parseInt(values.get(2).get(i).toString()));
             infoTabs.add(tab);
-        }
+        }//filling objects with information from the reading range
         for (InfoTab infoTab : infoTabs) {
             ArrayList<VacancyData> dates = new ArrayList<>();
             String url = buildUrl(infoTab);
             dates = fetchVacancyData(url);
             if (dates.size() == 0) {
                 valueList.add(0);
+                //means there is no information to parse on the page
             } else {
                 valueList.add(Math.round(calculateZp(dates)));
+                //information is on the page
             }
         }
-        valueList.add(0, LocalDate.now().format(formatter));
-        LocalDate lastDate = LocalDate.parse((String) valuesW.get(calculateNum(valuesW) - 1).get(0), formatter);
+        valueList.add(0, LocalDate.now().format(formatter)); // adding date to first pos
+        LocalDate lastDate = LocalDate.parse((String) valuesW.get(calculateNum(valuesW) - 1).get(0), formatter);//get the last date from the sheets
         if (lastDate.isEqual(LocalDate.now())) {
             updateValuesResponse(service, valuesW, valueList);
         } else {
             writeValuesResponse(service, valuesW, valueList);
         }
-        //переименовать дату, найти строчку, поменять параметры добавить методы
 
     }
+
+    /**
+
+     * calculating result from the one page
+     * @param vacancyDataArrayList
+     * @return calculetedDouble
+     */
 
     public static double calculateZp(ArrayList<VacancyData> vacancyDataArrayList) {
 
-        double[] sredZ = new double[vacancyDataArrayList.size() - 1];//column D never used????
-        int[] columnE = new int[vacancyDataArrayList.size() - 1];//column  E
-        double[] columnF = new double[vacancyDataArrayList.size() - 1];//column F
+        double[] averageSalary = new double[vacancyDataArrayList.size() - 1];//column D
+        int[] counts = new int[vacancyDataArrayList.size() - 1];//column  E
+        double[] averageCalculatedSalary = new double[vacancyDataArrayList.size() - 1];//column F
         for (int i = 0; i < vacancyDataArrayList.size() - 2; i++) {
-            sredZ[i] = (vacancyDataArrayList.get(i).getZp() + vacancyDataArrayList.get(i + 1).getZp()) / 2;
-            columnE[i] = vacancyDataArrayList.get(i).getVacancyAmount() - vacancyDataArrayList.get(i + 1).getVacancyAmount();
+            averageSalary[i] = (vacancyDataArrayList.get(i).getZp() + vacancyDataArrayList.get(i + 1).getZp()) / 2;
+            counts[i] = vacancyDataArrayList.get(i).getVacancyAmount() - vacancyDataArrayList.get(i + 1).getVacancyAmount();
+            averageCalculatedSalary[i] = averageSalary[i] * counts[i];
         }
-        for (int i = 0; i < vacancyDataArrayList.size() - 2; i++) {
-            columnF[i] = vacancyDataArrayList.get(i).getZp() * columnE[i];
-        }
-        return DoubleStream.of(columnF).sum() / IntStream.of(columnE).sum();
+        return DoubleStream.of(averageCalculatedSalary).sum() / IntStream.of(counts).sum();
     }
 
+    /**
+     * building a url from the input parameters
+     * @param infoTab
+     * @return
+     * @throws java.io.UnsupportedEncodingException
+     */
     public static String buildUrl(InfoTab infoTab) throws java.io.UnsupportedEncodingException {
         return String.format(basedUrl, URLEncoder.encode(infoTab.getKeyWords(), "utf-8"), infoTab.getRegionId(), workExp[infoTab.getExpereinceAmount() - 1]);
     }
 
+    /**
+     * getting info from the page
+     * @param url
+     * @return filled vacancyArrayList if page has info and returns unfilled if there is no info on page
+     * @throws java.io.IOException
+     */
     public static ArrayList<VacancyData> fetchVacancyData(String url) throws java.io.IOException {
         ArrayList<VacancyData> vacancyDataArrayList = new ArrayList<>();
         Document doc = Jsoup.parse(new URL(url).openStream(), "ISO-8859-9", url);
@@ -175,6 +194,11 @@ public class SheetsQuickstart {
 
     }
 
+    /**
+     * assembly a range to sheets
+     * @param valueList
+     * @return
+     */
     static ValueRange assemblyRange(ArrayList<Object> valueList) {
         List<List<Object>> objs = Arrays.asList(valueList);
         ValueRange appendBody = new ValueRange()
@@ -182,6 +206,11 @@ public class SheetsQuickstart {
         return appendBody;
     }
 
+    /**
+     * getting the last range count
+     * @param valueList
+     * @return
+     */
     static int calculateNum(List<List<Object>> valueList) {
         int num = 0;
         for (List d : valueList) {
